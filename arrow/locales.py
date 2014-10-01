@@ -418,7 +418,7 @@ class FinnishLocale(Locale):
 
 class ChineseCNLocale(Locale):
 
-    names = ['zh', 'zh_cn']
+    names = ['zh', 'zh_cn', 'zh_hk']
 
     past = '{0}前'
     future = '{0}后'
