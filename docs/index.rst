@@ -30,7 +30,8 @@ Features
 - Time zone-aware & UTC by default
 - Provides super-simple creation options for many common input scenarios
 - Updated .replace method with support for relative offsets, including weeks
-- Formats and parses strings, including ISO-8601-formatted strings automatically
+- Formats and parses strings automatically
+- Partial ISO-8601 support
 - Timezone conversion
 - Timestamp available as a property
 - Generates time spans, ranges, floors and ceilings in time frames from year to microsecond
@@ -65,6 +66,9 @@ Quickstart
 
     >>> local.timestamp
     1368303838
+
+    >>> local.format()
+    '2013-05-11 13:23:58 -07:00'
 
     >>> local.format('YYYY-MM-DD HH:mm:ss ZZ')
     '2013-05-11 13:23:58 -07:00'
@@ -135,7 +139,14 @@ Parse from a string:
     >>> arrow.get('2013-05-05 12:30:45', 'YYYY-MM-DD HH:mm:ss')
     <Arrow [2013-05-05T12:30:45+00:00]>
 
-Many ISO-8601 compliant strings are recognized and parsed without a format string:
+Search a date in a string:
+
+.. code-block:: python
+
+    >>> arrow.get('June was born in May 1980', 'MMMM YYYY')
+    <Arrow [1980-05-01T00:00:00+00:00]>
+
+Some ISO-8601 compliant strings are recognized and parsed without a format string:
 
     >>> arrow.get('2013-09-30T15:34:00.000-07:00')
     <Arrow [2013-09-30T15:34:00-07:00]>
@@ -354,7 +365,7 @@ Then get and use a factory for it:
 
 .. code-block:: python
 
-    >>> factory = arrow.Factory(CustomArrow)
+    >>> factory = arrow.ArrowFactory(CustomArrow)
     >>> custom = factory.utcnow()
     >>> custom
     >>> <CustomArrow [2013-05-27T23:35:35.533160+00:00]>
@@ -365,7 +376,7 @@ Then get and use a factory for it:
 Tokens
 ======
 
-Use the following tokens in parsing and formatting:
+Use the following tokens in parsing and formatting.  Note that they're not the same as the tokens for `strptime(3) <https://www.gnu.org/software/libc/manual/html_node/Low_002dLevel-Time-String-Parsing.html#index-strptime>`_:
 
 +--------------------------------+--------------+-------------------------------------------+
 |                                |Token         |Output                                     |
@@ -374,9 +385,9 @@ Use the following tokens in parsing and formatting:
 +--------------------------------+--------------+-------------------------------------------+
 |                                |YY            |00, 01, 02 ... 12, 13                      |
 +--------------------------------+--------------+-------------------------------------------+
-|**Month**                       |MMMM          |January, February, March ...               |
+|**Month**                       |MMMM          |January, February, March ... [#t1]_        |
 +--------------------------------+--------------+-------------------------------------------+
-|                                |MMM           |Jan, Feb, Mar ...                          |
+|                                |MMM           |Jan, Feb, Mar ... [#t1]_                   |
 +--------------------------------+--------------+-------------------------------------------+
 |                                |MM            |01, 02, 03 ... 11, 12                      |
 +--------------------------------+--------------+-------------------------------------------+
@@ -390,9 +401,11 @@ Use the following tokens in parsing and formatting:
 +--------------------------------+--------------+-------------------------------------------+
 |                                |D             |1, 2, 3 ... 30, 31                         |
 +--------------------------------+--------------+-------------------------------------------+
-|**Day of Week**                 |dddd          |Monday, Tuesday, Wednesday ...             |
+|                                |Do            |1st, 2nd, 3rd ... 30th, 31st               |
 +--------------------------------+--------------+-------------------------------------------+
-|                                |ddd           |Mon, Tue, Wed ...                          |
+|**Day of Week**                 |dddd          |Monday, Tuesday, Wednesday ... [#t2]_      |
++--------------------------------+--------------+-------------------------------------------+
+|                                |ddd           |Mon, Tue, Wed ... [#t2]_                   |
 +--------------------------------+--------------+-------------------------------------------+
 |                                |d             |1, 2, 3 ... 6, 7                           |
 +--------------------------------+--------------+-------------------------------------------+
@@ -404,9 +417,9 @@ Use the following tokens in parsing and formatting:
 +--------------------------------+--------------+-------------------------------------------+
 |                                |h             |1, 2, 3 ... 11, 12                         |
 +--------------------------------+--------------+-------------------------------------------+
-|**AM / PM**                     |A             |AM, PM                                     |
+|**AM / PM**                     |A             |AM, PM, am, pm [#t1]_                      |
 +--------------------------------+--------------+-------------------------------------------+
-|                                |a             |am, pm                                     |
+|                                |a             |am, pm [#t1]_                              |
 +--------------------------------+--------------+-------------------------------------------+
 |**Minute**                      |mm            |00, 01, 02 ... 58, 59                      |
 +--------------------------------+--------------+-------------------------------------------+
@@ -422,13 +435,20 @@ Use the following tokens in parsing and formatting:
 +--------------------------------+--------------+-------------------------------------------+
 |                                |S             |0, 1, 2 ... 8, 9                           |
 +--------------------------------+--------------+-------------------------------------------+
-|**Timezone**                    |ZZ            |-07:00, -06:00 ... +06:00, +07:00          |
+|**Timezone**                    |ZZZ           |Asia/Baku, Europe/Warsaw, GMT ... [#t3]_   |
++--------------------------------+--------------+-------------------------------------------+
+|                                |ZZ            |-07:00, -06:00 ... +06:00, +07:00          |
 +--------------------------------+--------------+-------------------------------------------+
 |                                |Z             |-0700, -0600 ... +0600, +0700              |
 +--------------------------------+--------------+-------------------------------------------+
 |**Timestamp**                   |X             |1381685817                                 |
 +--------------------------------+--------------+-------------------------------------------+
 
+.. rubric:: Footnotes
+
+.. [#t1] localization support for parsing and formatting
+.. [#t2] localization support only for formatting
+.. [#t3] timezone names from `tz database <https://www.iana.org/time-zones>`_  provided via dateutil package
 
 ---------
 API Guide

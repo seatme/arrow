@@ -6,6 +6,7 @@ from chai import Chai
 
 from datetime import date, datetime, timedelta
 from dateutil import tz
+import simplejson as json
 import calendar
 import pickle
 import time
@@ -123,6 +124,12 @@ class ArrowRepresentationTests(Chai):
 
         assertEqual(result, '2013-02-03')
 
+    def test_bare_format(self):
+
+        result = self.arrow.format()
+
+        assertEqual(result, '2013-02-03 12:30:45-00:00')
+
     def test_format_no_format_string(self):
 
         result = '{0}'.format(self.arrow)
@@ -152,6 +159,16 @@ class ArrowAttributeTests(Chai):
     def test_getattr_week(self):
 
         assertEqual(self.arrow.week, 1)
+
+    def test_getattr_quarter(self):
+        q1 = arrow.Arrow(2013, 1, 1)
+        q2 = arrow.Arrow(2013, 4, 1)
+        q3 = arrow.Arrow(2013, 8, 1)
+        q4 = arrow.Arrow(2013, 10, 1)
+        assertEqual(q1.quarter, 1)
+        assertEqual(q2.quarter, 2)
+        assertEqual(q3.quarter, 3)
+        assertEqual(q4.quarter, 4)
 
     def test_getattr_dt_value(self):
 
@@ -202,13 +219,18 @@ class ArrowComparisonTests(Chai):
 
         assertFalse(self.arrow > self.arrow)
         assertFalse(self.arrow > self.arrow.datetime)
-        assertFalse(self.arrow > 'abc')
+
+        with assertRaises(TypeError):
+            self.arrow > 'abc'
+
         assertTrue(self.arrow < arrow_cmp)
         assertTrue(self.arrow < arrow_cmp.datetime)
 
     def test_ge(self):
 
-        assertFalse(self.arrow >= 'abc')
+        with assertRaises(TypeError):
+            self.arrow >= 'abc'
+
         assertTrue(self.arrow >= self.arrow)
         assertTrue(self.arrow >= self.arrow.datetime)
 
@@ -218,13 +240,18 @@ class ArrowComparisonTests(Chai):
 
         assertFalse(self.arrow < self.arrow)
         assertFalse(self.arrow < self.arrow.datetime)
-        assertFalse(self.arrow < 'abc')
+
+        with assertRaises(TypeError):
+            self.arrow < 'abc'
+
         assertTrue(self.arrow < arrow_cmp)
         assertTrue(self.arrow < arrow_cmp.datetime)
 
     def test_le(self):
 
-        assertFalse(self.arrow <= 'abc')
+        with assertRaises(TypeError):
+            self.arrow <= 'abc'
+
         assertTrue(self.arrow <= self.arrow)
         assertTrue(self.arrow <= self.arrow.datetime)
 
@@ -244,7 +271,7 @@ class ArrowMathTests(Chai):
 
     def test_add_other(self):
 
-        with assertRaises(NotImplementedError):
+        with assertRaises(TypeError):
             self.arrow.__add__(1)
 
     def test_radd(self):
@@ -273,14 +300,19 @@ class ArrowMathTests(Chai):
 
     def test_sub_other(self):
 
-        with assertRaises(NotImplementedError):
+        with assertRaises(TypeError):
             self.arrow.__sub__(object())
 
-    def test_rsub(self):
+    def test_rsub_datetime(self):
 
-        result = self.arrow.__rsub__(timedelta(days=1))
+        result = self.arrow.__rsub__(datetime(2012, 12, 21, tzinfo=tz.tzutc()))
 
-        assertEqual(result._datetime, datetime(2012, 12, 31, tzinfo=tz.tzutc()))
+        assertEqual(result, timedelta(days=-11))
+
+    def test_rsub_other(self):
+
+        with assertRaises(TypeError):
+            self.arrow.__rsub__(timedelta(days=1))
 
 
 class ArrowDatetimeInterfaceTests(Chai):
@@ -370,6 +402,12 @@ class ArrowDatetimeInterfaceTests(Chai):
 
         assertEqual(result, self.arrow._datetime.isoformat())
 
+    def test_simplejson(self):
+
+        result = json.dumps({'v': self.arrow.for_json()}, for_json=True)
+
+        assertEqual(json.loads(result)['v'], self.arrow._datetime.isoformat())
+
     def test_ctime(self):
 
         result = self.arrow.ctime()
@@ -390,11 +428,10 @@ class ArrowConversionTests(Chai):
         dt_from = datetime.now()
         arrow_from = arrow.Arrow.fromdatetime(dt_from, tz.gettz('US/Pacific'))
 
-        result = arrow_from.to('UTC')
-
         expected = dt_from.replace(tzinfo=tz.gettz('US/Pacific')).astimezone(tz.tzutc())
 
-        assertEqual(result.datetime, expected)
+        assertEqual(arrow_from.to('UTC').datetime, expected)
+        assertEqual(arrow_from.to(tz.tzutc()).datetime, expected)
 
 
 class ArrowPicklingTests(Chai):
@@ -433,6 +470,8 @@ class ArrowReplaceTests(Chai):
         arw = arrow.Arrow(2013, 5, 5, 12, 30, 45)
 
         assertEqual(arw.replace(years=1), arrow.Arrow(2014, 5, 5, 12, 30, 45))
+        assertEqual(arw.replace(quarters=1), arrow.Arrow(2013, 8, 5, 12, 30, 45))
+        assertEqual(arw.replace(quarters=1, months=1), arrow.Arrow(2013, 9, 5, 12, 30, 45))
         assertEqual(arw.replace(months=1), arrow.Arrow(2013, 6, 5, 12, 30, 45))
         assertEqual(arw.replace(weeks=1), arrow.Arrow(2013, 5, 12, 12, 30, 45))
         assertEqual(arw.replace(days=1), arrow.Arrow(2013, 5, 6, 12, 30, 45))
@@ -487,6 +526,16 @@ class ArrowRangeTests(Chai):
             arrow.Arrow(2016, 1, 2, 3, 4, 5),
         ])
 
+    def test_quarter(self):
+
+        result = arrow.Arrow.range('quarter', datetime(2013, 2, 3, 4, 5, 6),
+            datetime(2013, 5, 6, 7, 8, 9))
+
+        assertEqual(result, [
+            arrow.Arrow(2013, 2, 3, 4, 5, 6),
+            arrow.Arrow(2013, 5, 3, 4, 5, 6),
+        ])
+
     def test_month(self):
 
         result = arrow.Arrow.range('month', datetime(2013, 2, 3, 4, 5, 6),
@@ -534,6 +583,13 @@ class ArrowRangeTests(Chai):
             arrow.Arrow(2013, 1, 2, 4, 4, 5),
             arrow.Arrow(2013, 1, 2, 5, 4, 5),
             arrow.Arrow(2013, 1, 2, 6, 4, 5),
+        ])
+
+        result = arrow.Arrow.range('hour', datetime(2013, 1, 2, 3, 4, 5),
+            datetime(2013, 1, 2, 3, 4, 5))
+
+        assertEqual(result, [
+            arrow.Arrow(2013, 1, 2, 3, 4, 5),
         ])
 
     def test_minute(self):
@@ -623,6 +679,15 @@ class ArrowSpanRangeTests(Chai):
             (arrow.Arrow(2016, 1, 1), arrow.Arrow(2016, 12, 31, 23, 59, 59, 999999)),
         ])
 
+    def test_quarter(self):
+
+        result = arrow.Arrow.span_range('quarter', datetime(2013, 2, 2), datetime(2013, 5, 15))
+
+        assertEqual(result, [
+            (arrow.Arrow(2013, 1, 1), arrow.Arrow(2013, 3, 31, 23, 59, 59, 999999)),
+            (arrow.Arrow(2013, 4, 1), arrow.Arrow(2013, 6, 30, 23, 59, 59, 999999)),
+        ])
+
     def test_month(self):
 
         result = arrow.Arrow.span_range('month', datetime(2013, 1, 2), datetime(2013, 4, 15))
@@ -643,6 +708,7 @@ class ArrowSpanRangeTests(Chai):
             (arrow.Arrow(2013, 2, 4), arrow.Arrow(2013, 2, 10, 23, 59, 59, 999999)),
             (arrow.Arrow(2013, 2, 11), arrow.Arrow(2013, 2, 17, 23, 59, 59, 999999)),
             (arrow.Arrow(2013, 2, 18), arrow.Arrow(2013, 2, 24, 23, 59, 59, 999999)),
+            (arrow.Arrow(2013, 2, 25), arrow.Arrow(2013, 3, 3, 23, 59, 59, 999999)),
         ])
 
 
@@ -667,6 +733,13 @@ class ArrowSpanRangeTests(Chai):
             (arrow.Arrow(2013, 1, 1, 0), arrow.Arrow(2013, 1, 1, 0, 59, 59, 999999)),
             (arrow.Arrow(2013, 1, 1, 1), arrow.Arrow(2013, 1, 1, 1, 59, 59, 999999)),
             (arrow.Arrow(2013, 1, 1, 2), arrow.Arrow(2013, 1, 1, 2, 59, 59, 999999)),
+            (arrow.Arrow(2013, 1, 1, 3), arrow.Arrow(2013, 1, 1, 3, 59, 59, 999999)),
+        ])
+
+        result = arrow.Arrow.span_range('hour', datetime(2013, 1, 1, 3, 30),
+            datetime(2013, 1, 1, 3, 30))
+
+        assertEqual(result, [
             (arrow.Arrow(2013, 1, 1, 3), arrow.Arrow(2013, 1, 1, 3, 59, 59, 999999)),
         ])
 
@@ -760,6 +833,31 @@ class ArrowSpanTests(Chai):
         assertEqual(floor, datetime(2013, 1, 1, tzinfo=tz.tzutc()))
         assertEqual(ceil, datetime(2013, 12, 31, 23, 59, 59, 999999, tzinfo=tz.tzutc()))
 
+
+    def test_span_quarter(self):
+
+        floor, ceil = self.arrow.span('quarter')
+
+        assertEqual(floor, datetime(2013, 1, 1, tzinfo=tz.tzutc()))
+        assertEqual(ceil, datetime(2013, 3, 31, 23, 59, 59, 999999, tzinfo=tz.tzutc()))
+
+
+    def test_span_quarter_count(self):
+
+        floor, ceil = self.arrow.span('quarter', 2)
+
+        assertEqual(floor, datetime(2013, 1, 1, tzinfo=tz.tzutc()))
+        assertEqual(ceil, datetime(2013, 6, 30, 23, 59, 59, 999999, tzinfo=tz.tzutc()))
+
+
+    def test_span_year_count(self):
+
+        floor, ceil = self.arrow.span('year', 2)
+
+        assertEqual(floor, datetime(2013, 1, 1, tzinfo=tz.tzutc()))
+        assertEqual(ceil, datetime(2014, 12, 31, 23, 59, 59, 999999, tzinfo=tz.tzutc()))
+
+
     def test_span_month(self):
 
         floor, ceil = self.arrow.span('month')
@@ -832,12 +930,19 @@ class ArrowHumanizeTests(Chai):
         assertEqual(self.now.humanize(later), 'seconds ago')
         assertEqual(later.humanize(self.now), 'in seconds')
 
+        assertEqual(self.now.humanize(later, only_distance=True), 'seconds')
+        assertEqual(later.humanize(self.now, only_distance=True), 'seconds')
+
     def test_minute(self):
 
         later = self.now.replace(minutes=1)
 
         assertEqual(self.now.humanize(later), 'a minute ago')
         assertEqual(later.humanize(self.now), 'in a minute')
+
+        assertEqual(self.now.humanize(later, only_distance=True), 'a minute')
+        assertEqual(later.humanize(self.now, only_distance=True), 'a minute')
+
 
     def test_minutes(self):
 
@@ -846,12 +951,18 @@ class ArrowHumanizeTests(Chai):
         assertEqual(self.now.humanize(later), '2 minutes ago')
         assertEqual(later.humanize(self.now), 'in 2 minutes')
 
+        assertEqual(self.now.humanize(later, only_distance=True), '2 minutes')
+        assertEqual(later.humanize(self.now, only_distance=True), '2 minutes')
+
     def test_hour(self):
 
         later = self.now.replace(hours=1)
 
         assertEqual(self.now.humanize(later), 'an hour ago')
         assertEqual(later.humanize(self.now), 'in an hour')
+
+        assertEqual(self.now.humanize(later, only_distance=True), 'an hour')
+        assertEqual(later.humanize(self.now, only_distance=True), 'an hour')
 
     def test_hours(self):
 
@@ -860,12 +971,18 @@ class ArrowHumanizeTests(Chai):
         assertEqual(self.now.humanize(later), '2 hours ago')
         assertEqual(later.humanize(self.now), 'in 2 hours')
 
+        assertEqual(self.now.humanize(later, only_distance=True), '2 hours')
+        assertEqual(later.humanize(self.now, only_distance=True), '2 hours')
+
     def test_day(self):
 
         later = self.now.replace(days=1)
 
         assertEqual(self.now.humanize(later), 'a day ago')
         assertEqual(later.humanize(self.now), 'in a day')
+
+        assertEqual(self.now.humanize(later, only_distance=True), 'a day')
+        assertEqual(later.humanize(self.now, only_distance=True), 'a day')
 
     def test_days(self):
 
@@ -874,6 +991,9 @@ class ArrowHumanizeTests(Chai):
         assertEqual(self.now.humanize(later), '2 days ago')
         assertEqual(later.humanize(self.now), 'in 2 days')
 
+        assertEqual(self.now.humanize(later, only_distance=True), '2 days')
+        assertEqual(later.humanize(self.now, only_distance=True), '2 days')
+
     def test_month(self):
 
         later = self.now.replace(months=1)
@@ -881,12 +1001,19 @@ class ArrowHumanizeTests(Chai):
         assertEqual(self.now.humanize(later), 'a month ago')
         assertEqual(later.humanize(self.now), 'in a month')
 
+        assertEqual(self.now.humanize(later, only_distance=True), 'a month')
+        assertEqual(later.humanize(self.now, only_distance=True), 'a month')
+
     def test_months(self):
 
         later = self.now.replace(months=2)
+        earlier = self.now.replace(months=-2)
 
-        assertEqual(self.now.humanize(later), '2 months ago')
+        assertEqual(earlier.humanize(self.now), '2 months ago')
         assertEqual(later.humanize(self.now), 'in 2 months')
+
+        assertEqual(self.now.humanize(later, only_distance=True), '2 months')
+        assertEqual(later.humanize(self.now, only_distance=True), '2 months')
 
     def test_year(self):
 
@@ -895,12 +1022,18 @@ class ArrowHumanizeTests(Chai):
         assertEqual(self.now.humanize(later), 'a year ago')
         assertEqual(later.humanize(self.now), 'in a year')
 
+        assertEqual(self.now.humanize(later, only_distance=True), 'a year')
+        assertEqual(later.humanize(self.now, only_distance=True), 'a year')
+
     def test_years(self):
 
         later = self.now.replace(years=2)
 
         assertEqual(self.now.humanize(later), '2 years ago')
         assertEqual(later.humanize(self.now), 'in 2 years')
+
+        assertEqual(self.now.humanize(later, only_distance=True), '2 years')
+        assertEqual(later.humanize(self.now, only_distance=True), '2 years')
 
         arw = arrow.Arrow(2014, 7, 2)
 
@@ -992,15 +1125,17 @@ class ArrowUtilTests(Chai):
         assertEqual(get_datetime(dt), dt)
         assertEqual(get_datetime(timestamp), arrow.Arrow.utcfromtimestamp(timestamp).datetime)
 
-        with assertRaises(ValueError):
+        with assertRaises(ValueError) as raise_ctx:
             get_datetime('abc')
+        assertFalse('{0}' in str(raise_ctx.exception))
 
     def test_get_tzinfo(self):
 
         get_tzinfo = arrow.Arrow._get_tzinfo
 
-        with assertRaises(ValueError):
+        with assertRaises(ValueError) as raise_ctx:
             get_tzinfo('abc')
+        assertFalse('{0}' in str(raise_ctx.exception))
 
     def test_get_timestamp_from_input(self):
 
@@ -1019,4 +1154,3 @@ class ArrowUtilTests(Chai):
 
         with assertRaises(Exception):
             arrow.Arrow._get_iteration_params(None, None)
-
