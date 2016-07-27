@@ -2,7 +2,6 @@
 from __future__ import absolute_import
 from __future__ import unicode_literals
 
-import calendar
 import inspect
 import sys
 
@@ -61,20 +60,23 @@ class Locale(object):
     day_names = []
     day_abbreviations = []
 
+    ordinal_day_re = r'(\d+)'
+
     def __init__(self):
 
         self._month_name_to_ordinal = None
 
-    def describe(self, timeframe, delta=0):
+    def describe(self, timeframe, delta=0, only_distance=False):
         ''' Describes a delta within a timeframe in plain language.
 
         :param timeframe: a string representing a timeframe.
         :param delta: a quantity representing a delta in a timeframe.
-
+        :param only_distance: return only distance eg: "11 seconds" without "in" or "ago" keywords
         '''
 
         humanized = self._format_timeframe(timeframe, delta)
-        humanized = self._format_relative(humanized, timeframe, delta)
+        if not only_distance:
+            humanized = self._format_relative(humanized, timeframe, delta)
 
         return humanized
 
@@ -127,6 +129,20 @@ class Locale(object):
 
         return self._month_name_to_ordinal.get(name)
 
+    def year_full(self, year):
+        '''  Returns the year for specific locale if available
+
+        :param name: the ``int`` year (4-digit)
+        '''
+        return '{0:04d}'.format(year)
+
+    def year_abbreviation(self, year):
+        ''' Returns the year for specific locale if available
+
+        :param name: the ``int`` year (4-digit)
+        '''
+        return '{0:04d}'.format(year)[2:]
+
     def meridian(self, hour, token):
         ''' Returns the meridian indicator for a specified hour and format token.
 
@@ -139,9 +155,18 @@ class Locale(object):
         if token == 'A':
             return self.meridians['AM'] if hour < 12 else self.meridians['PM']
 
+    def ordinal_number(self, n):
+        ''' Returns the ordinal format of a given integer
+
+        :param n: an integer
+        '''
+        return self._ordinal_number(n)
+
+    def _ordinal_number(self, n):
+        return '{0}'.format(n)
 
     def _name_to_ordinal(self, lst):
-        return dict(map(lambda i: (i[1], i[0] + 1), enumerate(lst[1:])))
+        return dict(map(lambda i: (i[1].lower(), i[0] + 1), enumerate(lst[1:])))
 
     def _format_timeframe(self, timeframe, delta):
 
@@ -161,7 +186,7 @@ class Locale(object):
 
 class EnglishLocale(Locale):
 
-    names = ['en', 'en_us']
+    names = ['en', 'en_us', 'en_gb', 'en_au', 'en_be', 'en_jp', 'en_za', 'en_ca']
 
     past = '{0} ago'
     future = 'in {0}'
@@ -196,6 +221,19 @@ class EnglishLocale(Locale):
     day_names = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
     day_abbreviations = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
+    ordinal_day_re = r'((?P<value>[2-3]?1(?=st)|[2-3]?2(?=nd)|[2-3]?3(?=rd)|[1-3]?[04-9](?=th)|1[1-3](?=th))(st|nd|rd|th))'
+
+    def _ordinal_number(self, n):
+        if n % 100 not in (11, 12, 13):
+            remainder = abs(n) % 10
+            if remainder == 1:
+                return '{0}st'.format(n)
+            elif remainder == 2:
+                return '{0}nd'.format(n)
+            elif remainder == 3:
+                return '{0}rd'.format(n)
+        return '{0}th'.format(n)
+
 
 class ItalianLocale(Locale):
     names = ['it', 'it_it']
@@ -217,13 +255,19 @@ class ItalianLocale(Locale):
         'years': '{0} anni',
     }
 
-    month_names = ['', 'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio',
-        'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre']
-    month_abbreviations = ['', 'Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago',
-        'Set', 'Ott', 'Nov', 'Dic']
+    month_names = ['', 'gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio',
+        'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre']
+    month_abbreviations = ['', 'gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago',
+        'set', 'ott', 'nov', 'dic']
 
-    day_names = ['', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica']
-    day_abbreviations = ['', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom']
+    day_names = ['', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato', 'domenica']
+    day_abbreviations = ['', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab', 'dom']
+
+    ordinal_day_re = r'((?P<value>[1-3]?[0-9](?=°))°)'
+
+    def _ordinal_number(self, n):
+        return '{0}°'.format(n)
+
 
 class SpanishLocale(Locale):
     names = ['es', 'es_es']
@@ -245,13 +289,18 @@ class SpanishLocale(Locale):
         'years': '{0} años',
     }
 
-    month_names = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio',
-        'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
-    month_abbreviations = ['', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago',
-        'Sep', 'Oct', 'Nov', 'Dic']
+    month_names = ['', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',
+        'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
+    month_abbreviations = ['', 'ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago',
+        'sep', 'oct', 'nov', 'dic']
 
-    day_names = ['', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
-    day_abbreviations = ['', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom']
+    day_names = ['', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo']
+    day_abbreviations = ['', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom']
+
+    ordinal_day_re = r'((?P<value>[1-3]?[0-9](?=°))°)'
+
+    def _ordinal_number(self, n):
+        return '{0}°'.format(n)
 
 
 class FrenchLocale(Locale):
@@ -274,13 +323,20 @@ class FrenchLocale(Locale):
         'years': '{0} ans',
     }
 
-    month_names = ['', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet',
-        'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
-    month_abbreviations = ['', 'Janv', 'Févr', 'Mars', 'Avr', 'Mai', 'Juin', 'Juil', 'Août',
-        'Sept', 'Oct', 'Nov', 'Déc']
+    month_names = ['', 'janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet',
+        'août', 'septembre', 'octobre', 'novembre', 'décembre']
+    month_abbreviations = ['', 'janv', 'févr', 'mars', 'avr', 'mai', 'juin', 'juil', 'août',
+        'sept', 'oct', 'nov', 'déc']
 
-    day_names = ['', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
-    day_abbreviations = ['', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
+    day_names = ['', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
+    day_abbreviations = ['', 'lun', 'mar', 'mer', 'jeu', 'ven', 'sam', 'dim']
+
+    ordinal_day_re = r'((?P<value>\b1(?=er\b)|[1-3]?[02-9](?=e\b)|[1-3]1(?=e\b))(er|e)\b)'
+
+    def _ordinal_number(self, n):
+        if abs(n) == 1:
+            return '{0}er'.format(n)
+        return '{0}e'.format(n)
 
 
 class GreekLocale(Locale):
@@ -323,7 +379,7 @@ class JapaneseLocale(Locale):
 
     timeframes = {
         'now': '現在',
-        'seconds': '秒',
+        'seconds': '数秒',
         'minute': '1分',
         'minutes': '{0}分',
         'hour': '1時間',
@@ -367,13 +423,13 @@ class SwedishLocale(Locale):
         'years': '{0} år',
     }
 
-    month_names = ['', 'Januari', 'Februari', 'Mars', 'April', 'Maj', 'Juni', 'Juli',
-        'Augusti', 'September', 'Oktober', 'November', 'December']
-    month_abbreviations = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'Maj', 'Jun', 'Jul',
-        'Aug', 'Sep', 'Okt', 'Nov', 'Dec']
+    month_names = ['', 'januari', 'februari', 'mars', 'april', 'maj', 'juni', 'juli',
+        'augusti', 'september', 'oktober', 'november', 'december']
+    month_abbreviations = ['', 'jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul',
+        'aug', 'sep', 'okt', 'nov', 'dec']
 
-    day_names = ['', 'Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lördag', 'Söndag']
-    day_abbreviations = ['', 'Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör', 'Sön']
+    day_names = ['', 'måndag', 'tisdag', 'onsdag', 'torsdag', 'fredag', 'lördag', 'söndag']
+    day_abbreviations = ['', 'mån', 'tis', 'ons', 'tor', 'fre', 'lör', 'sön']
 
 
 class FinnishLocale(Locale):
@@ -387,18 +443,18 @@ class FinnishLocale(Locale):
     future = '{0} kuluttua'
 
     timeframes = {
-        'now': 'juuri nyt',
-        'seconds': 'muutama sekunti',
-        'minute': 'minuutti',
-        'minutes': '{0} minuuttia',
-        'hour': 'tunti',
-        'hours': '{0} tuntia',
-        'day': 'päivä',
-        'days': '{0} päivää',
-        'month': 'kuukausi',
-        'months': '{0} kuukautta',
-        'year': 'vuosi',
-        'years': '{0} vuotta',
+        'now': ['juuri nyt', 'juuri nyt'],
+        'seconds': ['muutama sekunti', 'muutaman sekunnin'],
+        'minute': ['minuutti', 'minuutin'],
+        'minutes': ['{0} minuuttia', '{0} minuutin'],
+        'hour': ['tunti', 'tunnin'],
+        'hours': ['{0} tuntia', '{0} tunnin'],
+        'day': ['päivä', 'päivä'],
+        'days': ['{0} päivää', '{0} päivän'],
+        'month': ['kuukausi', 'kuukauden'],
+        'months': ['{0} kuukautta', '{0} kuukauden'],
+        'year': ['vuosi', 'vuoden'],
+        'years': ['{0} vuotta', '{0} vuoden'],
     }
 
     # Months and days are lowercase in Finnish
@@ -415,6 +471,22 @@ class FinnishLocale(Locale):
 
     day_abbreviations = ['', 'ma', 'ti', 'ke', 'to', 'pe', 'la', 'su']
 
+    def _format_timeframe(self, timeframe, delta):
+        return (self.timeframes[timeframe][0].format(abs(delta)),
+                self.timeframes[timeframe][1].format(abs(delta)))
+
+    def _format_relative(self, humanized, timeframe, delta):
+        if timeframe == 'now':
+            return humanized[0]
+
+        direction = self.past if delta < 0 else self.future
+        which = 0 if delta < 0 else 1
+
+        return direction.format(humanized[which])
+
+    def _ordinal_number(self, n):
+        return '{0}.'.format(n)
+
 
 class ChineseCNLocale(Locale):
 
@@ -425,7 +497,7 @@ class ChineseCNLocale(Locale):
 
     timeframes = {
         'now': '刚才',
-        'seconds': '秒',
+        'seconds': '几秒',
         'minute': '1分钟',
         'minutes': '{0}分钟',
         'hour': '1小时',
@@ -456,7 +528,7 @@ class ChineseTWLocale(Locale):
 
     timeframes = {
         'now': '剛才',
-        'seconds': '秒',
+        'seconds': '幾秒',
         'minute': '1分鐘',
         'minutes': '{0}分鐘',
         'hour': '1小時',
@@ -523,20 +595,20 @@ class DutchLocale(Locale):
         'minute': 'een minuut',
         'minutes': '{0} minuten',
         'hour': 'een uur',
-        'hours': '{0} uren',
+        'hours': '{0} uur',
         'day': 'een dag',
         'days': '{0} dagen',
         'month': 'een maand',
         'months': '{0} maanden',
         'year': 'een jaar',
-        'years': '{0} jaren',
+        'years': '{0} jaar',
     }
 
     # In Dutch names of months and days are not starting with a capital letter
     # like in the English language.
     month_names = ['', 'januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli',
         'augustus', 'september', 'oktober', 'november', 'december']
-    month_abbreviations = ['', 'jan', 'feb', 'maa', 'apr', 'mei', 'jun', 'jul', 'aug',
+    month_abbreviations = ['', 'jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug',
         'sep', 'okt', 'nov', 'dec']
 
     day_names = ['', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag', 'zondag']
@@ -561,6 +633,36 @@ class SlavicBaseLocale(Locale):
 
         return form.format(delta)
 
+class BelarusianLocale(SlavicBaseLocale):
+
+    names = ['be', 'be_by']
+
+    past = '{0} таму'
+    future = 'праз {0}'
+
+    timeframes = {
+        'now': 'зараз',
+        'seconds': 'некалькі секунд',
+        'minute': 'хвіліну',
+        'minutes': ['{0} хвіліну', '{0} хвіліны', '{0} хвілін'],
+        'hour': 'гадзіну',
+        'hours': ['{0} гадзіну', '{0} гадзіны', '{0} гадзін'],
+        'day': 'дзень',
+        'days': ['{0} дзень', '{0} дні', '{0} дзён'],
+        'month': 'месяц',
+        'months': ['{0} месяц', '{0} месяцы', '{0} месяцаў'],
+        'year': 'год',
+        'years': ['{0} год', '{0} гады', '{0} гадоў'],
+    }
+
+    month_names = ['', 'студзеня', 'лютага', 'сакавіка', 'красавіка', 'траўня', 'чэрвеня',
+        'ліпеня', 'жніўня', 'верасня', 'кастрычніка', 'лістапада', 'снежня']
+    month_abbreviations = ['', 'студ', 'лют', 'сак', 'крас', 'трав', 'чэрв', 'ліп', 'жнів',
+        'вер', 'каст', 'ліст', 'снеж']
+
+    day_names = ['', 'панядзелак', 'аўторак', 'серада', 'чацвер', 'пятніца', 'субота', 'нядзеля']
+    day_abbreviations = ['', 'пн', 'ат', 'ср', 'чц', 'пт', 'сб', 'нд']
+
 
 class PolishLocale(SlavicBaseLocale):
 
@@ -584,14 +686,14 @@ class PolishLocale(SlavicBaseLocale):
         'years': ['{0} rok', '{0} lata', '{0} lat'],
     }
 
-    month_names = ['', 'Styczeń', 'Luty', 'Marzec', 'Kwiecień', 'Maj',
-        'Czerwiec', 'Lipiec', 'Sierpień', 'Wrzesień', 'Październik',
-        'Listopad', 'Grudzień']
+    month_names = ['', 'styczeń', 'luty', 'marzec', 'kwiecień', 'maj',
+        'czerwiec', 'lipiec', 'sierpień', 'wrzesień', 'październik',
+        'listopad', 'grudzień']
     month_abbreviations = ['', 'sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip',
         'sie', 'wrz', 'paź', 'lis', 'gru']
 
-    day_names = ['', 'Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek',
-        'Sobota', 'Niedziela']
+    day_names = ['', 'poniedziałek', 'wtorek', 'środa', 'czwartek', 'piątek',
+        'sobota', 'niedziela']
     day_abbreviations = ['', 'Pn', 'Wt', 'Śr', 'Czw', 'Pt', 'So', 'Nd']
 
 
@@ -627,6 +729,38 @@ class RussianLocale(SlavicBaseLocale):
     day_abbreviations = ['', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс']
 
 
+class BulgarianLocale(SlavicBaseLocale):
+
+    names = ['bg', 'bg_BG']
+
+    past = '{0} назад'
+    future = 'напред {0}'
+
+    timeframes = {
+        'now': 'сега',
+        'seconds': 'няколко секунди',
+        'minute': 'минута',
+        'minutes': ['{0} минута', '{0} минути', '{0} минути'],
+        'hour': 'час',
+        'hours': ['{0} час', '{0} часа', '{0} часа'],
+        'day': 'ден',
+        'days': ['{0} ден', '{0} дни', '{0} дни'],
+        'month': 'месец',
+        'months': ['{0} месец', '{0} месеца', '{0} месеца'],
+        'year': 'година',
+        'years': ['{0} година', '{0} години', '{0} години'],
+    }
+
+    month_names = ['', 'януари', 'февруари', 'март', 'април', 'май', 'юни',
+        'юли', 'август', 'септември', 'октомври', 'ноември', 'декември']
+    month_abbreviations = ['', 'ян', 'февр', 'март', 'апр', 'май', 'юни', 'юли',
+        'авг', 'септ', 'окт', 'ноем', 'дек']
+
+    day_names = ['', 'понеделник', 'вторник', 'сряда', 'четвъртък', 'петък',
+        'събота', 'неделя']
+    day_abbreviations = ['', 'пон', 'вт', 'ср', 'четв', 'пет', 'съб', 'нед']
+
+
 class UkrainianLocale(SlavicBaseLocale):
 
     names = ['ua', 'uk_ua']
@@ -651,16 +785,14 @@ class UkrainianLocale(SlavicBaseLocale):
 
     month_names = ['', 'січня', 'лютого', 'березня', 'квітня', 'травня', 'червня',
         'липня', 'серпня', 'вересня', 'жовтня', 'листопада', 'грудня']
-    month_abbreviations = ['', 'січ', 'лют', 'бер', 'кві', 'тра', 'чер', 'лип', 'сер',
-        'вер', 'жов', 'лис', 'гру']
+    month_abbreviations = ['', 'січ', 'лют', 'бер', 'квіт', 'трав', 'черв', 'лип', 'серп',
+        'вер', 'жовт', 'лист', 'груд']
 
-    day_names = ['', 'понеділок', 'вівторок', 'середа', 'четвер', 'п\'ятниця', 'субота', 'неділя']
+    day_names = ['', 'понеділок', 'вівторок', 'середа', 'четвер', 'п’ятниця', 'субота', 'неділя']
     day_abbreviations = ['', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'нд']
 
 
-class GermanLocale(Locale):
-
-    names = ['de', 'de_de']
+class _DeutschLocaleCommonMixin(object):
 
     past = 'vor {0}'
     future = 'in {0}'
@@ -684,59 +816,40 @@ class GermanLocale(Locale):
         '', 'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli',
         'August', 'September', 'Oktober', 'November', 'Dezember'
     ]
+
     month_abbreviations = [
         '', 'Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep',
         'Okt', 'Nov', 'Dez'
     ]
 
     day_names = [
-       '', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag',
-       'Samstag', 'Sonntag'
+        '', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag',
+        'Samstag', 'Sonntag'
     ]
 
-    day_abbreviations = ['', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
+    day_abbreviations = [
+        '', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'
+    ]
+
+    def _ordinal_number(self, n):
+        return '{0}.'.format(n)
 
 
-class AustriaLocale(Locale):
+class GermanLocale(_DeutschLocaleCommonMixin, Locale):
+
+    names = ['de', 'de_de']
+
+    timeframes = _DeutschLocaleCommonMixin.timeframes.copy()
+    timeframes['days'] = '{0} Tagen'
+
+
+class AustriaLocale(_DeutschLocaleCommonMixin, Locale):
 
     names = ['de', 'de_at']
 
-    past = 'vor {0}'
-    future = 'in {0}'
+    timeframes = _DeutschLocaleCommonMixin.timeframes.copy()
+    timeframes['days'] = '{0} Tage'
 
-    timeframes = {
-            'now': 'gerade eben',
-            'seconds':  'Sekunden',
-            'minute': 'einer Minute',
-            'minutes': '{0} Minuten',
-            'hour': 'einer Stunde',
-            'hours': '{0} Stunden',
-            'day': 'einem Tag',
-            'days': '{0} Tage',
-            'month': 'einem Monat',
-            'months': '{0} Monaten',
-            'year': 'einem Jahr',
-            'years': '{0} Jahren',
-        }
-
-    month_names = [
-            '', 'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli',
-            'August', 'September', 'Oktober', 'November', 'Dezember'
-        ]
-
-    month_abbreviations = [
-            '', 'Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep',
-            'Okt', 'Nov', 'Dez'
-        ]
-
-    day_names = [
-            '', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag',
-            'Samstag', 'Sonntag'
-        ]
-
-    day_abbreviations = [
-            '', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'
-        ]
 
 class NorwegianLocale(Locale):
 
@@ -760,15 +873,15 @@ class NorwegianLocale(Locale):
         'years': '{0} år',
     }
 
-    month_names = ['', 'Januar', 'Februar', 'Mars', 'April', 'Mai', 'Juni',
-                   'Juli', 'August', 'September', 'Oktober', 'November',
-                   'Desember']
-    month_abbreviations = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'Mai', 'Jun', 'Jul',
-                           'Aug', 'Sep', 'Okt', 'Nov', 'Des']
+    month_names = ['', 'januar', 'februar', 'mars', 'april', 'mai', 'juni',
+                   'juli', 'august', 'september', 'oktober', 'november',
+                   'desember']
+    month_abbreviations = ['', 'jan', 'feb', 'mar', 'apr', 'mai', 'jun', 'jul',
+                           'aug', 'sep', 'okt', 'nov', 'des']
 
-    day_names = ['', 'Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag',
-                 'Lørdag', 'Søndag']
-    day_abbreviations = ['', 'Ma', 'Ti', 'On', 'To', 'Fr', 'Lø', 'Sø']
+    day_names = ['', 'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag',
+                 'lørdag', 'søndag']
+    day_abbreviations = ['', 'ma', 'ti', 'on', 'to', 'fr', 'lø', 'sø']
 
 
 class NewNorwegianLocale(Locale):
@@ -789,19 +902,19 @@ class NewNorwegianLocale(Locale):
         'days': '{0} dagar',
         'month': 'en månad',
         'months': '{0} månader',
-        'year': 'Eit år',
+        'year': 'eit år',
         'years': '{0} år',
     }
 
-    month_names = ['', 'Januar', 'Februar', 'Mars', 'April', 'Mai', 'Juni',
-                   'Juli', 'August', 'September', 'Oktober', 'November',
-                   'Desember']
-    month_abbreviations = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'Mai', 'Jun', 'Jul',
-                           'Aug', 'Sep', 'Okt', 'Nov', 'Des']
+    month_names = ['', 'januar', 'februar', 'mars', 'april', 'mai', 'juni',
+                   'juli', 'august', 'september', 'oktober', 'november',
+                   'desember']
+    month_abbreviations = ['', 'jan', 'feb', 'mar', 'apr', 'mai', 'jun', 'jul',
+                           'aug', 'sep', 'okt', 'nov', 'des']
 
-    day_names = ['', 'Måndag', 'Tysdag', 'Onsdag', 'Torsdag', 'Fredag',
-                 'Laurdag', 'Sundag']
-    day_abbreviations = ['', 'Må', 'Ty', 'On', 'To', 'Fr', 'La', 'Su']
+    day_names = ['', 'måndag', 'tysdag', 'onsdag', 'torsdag', 'fredag',
+                 'laurdag', 'sundag']
+    day_abbreviations = ['', 'må', 'ty', 'on', 'to', 'fr', 'la', 'su']
 
 
 class PortugueseLocale(Locale):
@@ -825,14 +938,14 @@ class PortugueseLocale(Locale):
         'years': '{0} anos',
     }
 
-    month_names = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho',
-        'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
-    month_abbreviations = ['', 'Jan', 'Fev', 'Mar', 'Abr', 'Maio', 'Jun', 'Jul', 'Ago',
-        'Set', 'Out', 'Nov', 'Dez']
+    month_names = ['', 'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho',
+        'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
+    month_abbreviations = ['', 'jan', 'fev', 'mar', 'abr', 'maio', 'jun', 'jul', 'ago',
+        'set', 'out', 'nov', 'dez']
 
-    day_names = ['', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira',
-        'Sábado', 'Domingo']
-    day_abbreviations = ['', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab', 'Dom']
+    day_names = ['', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira',
+        'sábado', 'domingo']
+    day_abbreviations = ['', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab', 'dom']
     
     
 class BrazilianPortugueseLocale(PortugueseLocale):
@@ -905,7 +1018,7 @@ class VietnameseLocale(Locale):
 
 class TurkishLocale(Locale):
 
-    names = ['tr', 'tr_TR']
+    names = ['tr', 'tr_tr']
 
     past = '{0} önce'
     future = '{0} sonra'
@@ -936,7 +1049,7 @@ class TurkishLocale(Locale):
 
 class ArabicLocale(Locale):
 
-    names = ['ar', 'ar_EG']
+    names = ['ar', 'ar_eg']
 
     past = 'منذ {0}'
     future = 'خلال {0}'
@@ -1121,7 +1234,236 @@ class HindiLocale(Locale):
     day_names = ['', 'सोमवार', 'मंगलवार', 'बुधवार', 'गुरुवार', 'शुक्रवार', 'शनिवार', 'रविवार']
     day_abbreviations = ['', 'सोम', 'मंगल', 'बुध', 'गुरुवार', 'शुक्र', 'शनि', 'रवि']
 
+class CzechLocale(Locale):
+    names = ['cs', 'cs_cz']
 
+    timeframes = {
+        'now': 'Teď',
+        'seconds': {
+            'past': '{0} sekundami',
+            'future': ['{0} sekundy', '{0} sekund']
+        },
+        'minute': {'past': 'minutou', 'future': 'minutu', 'zero': '{0} minut'},
+        'minutes': {
+            'past': '{0} minutami',
+            'future': ['{0} minuty', '{0} minut']
+        },
+        'hour': {'past': 'hodinou', 'future': 'hodinu', 'zero': '{0} hodin'},
+        'hours': {
+            'past': '{0} hodinami',
+            'future': ['{0} hodiny', '{0} hodin']
+        },
+        'day': {'past': 'dnem', 'future': 'den', 'zero': '{0} dnů'},
+        'days': {
+            'past': '{0} dny',
+            'future': ['{0} dny', '{0} dnů']
+        },
+        'month': {'past': 'měsícem', 'future': 'měsíc', 'zero': '{0} měsíců'},
+        'months': {
+            'past': '{0} měsíci',
+            'future': ['{0} měsíce', '{0} měsíců']
+        },
+        'year': {'past': 'rokem', 'future': 'rok', 'zero': '{0} let'},
+        'years': {
+            'past': '{0} lety',
+            'future': ['{0} roky', '{0} let']
+        }
+    }
+
+    past = 'Před {0}'
+    future = 'Za {0}'
+
+    month_names = ['', 'leden', 'únor', 'březen', 'duben', 'květen', 'červen',
+        'červenec', 'srpen', 'září', 'říjen', 'listopad', 'prosinec']
+    month_abbreviations = ['', 'led', 'úno', 'bře', 'dub', 'kvě', 'čvn', 'čvc',
+        'srp', 'zář', 'říj', 'lis', 'pro']
+
+    day_names = ['', 'pondělí', 'úterý', 'středa', 'čtvrtek', 'pátek',
+        'sobota', 'neděle']
+    day_abbreviations = ['', 'po', 'út', 'st', 'čt', 'pá', 'so', 'ne']
+
+
+    def _format_timeframe(self, timeframe, delta):
+        '''Czech aware time frame format function, takes into account the differences between past and future forms.'''
+        form = self.timeframes[timeframe]
+        if isinstance(form, dict):
+            if delta == 0:
+                form = form['zero'] # And *never* use 0 in the singular!
+            elif delta > 0:
+                form = form['future']
+            else:
+                form = form['past']
+        delta = abs(delta)  
+
+        if isinstance(form, list):
+            if 2 <= delta % 10 <= 4 and (delta % 100 < 10 or delta % 100 >= 20):
+                form = form[0]
+            else:
+                form = form[1]
+
+        return form.format(delta)
+
+class FarsiLocale(Locale):
+
+    names = ['fa', 'fa_ir']
+
+    past = '{0} قبل'
+    future = 'در {0}'
+
+    timeframes = {
+        'now': 'اکنون',
+        'seconds': 'ثانیه',
+        'minute': 'یک دقیقه',
+        'minutes': '{0} دقیقه',
+        'hour': 'یک ساعت',
+        'hours': '{0} ساعت',
+        'day': 'یک روز',
+        'days': '{0} روز',
+        'month': 'یک ماه',
+        'months': '{0} ماه',
+        'year': 'یک سال',
+        'years': '{0} سال',
+    }
+
+    meridians = {
+        'am': 'قبل از ظهر',
+        'pm': 'بعد از ظهر',
+        'AM': 'قبل از ظهر',
+        'PM': 'بعد از ظهر',
+    }
+
+    month_names = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July',
+        'August', 'September', 'October', 'November', 'December']
+    month_abbreviations = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug',
+        'Sep', 'Oct', 'Nov', 'Dec']
+
+    day_names = ['', 'دو شنبه', 'سه شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه', 'شنبه', 'یکشنبه']
+    day_abbreviations = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+
+class MacedonianLocale(Locale):
+    names = ['mk', 'mk_mk']
+
+    past = 'пред {0}'
+    future = 'за {0}'
+
+    timeframes = {
+        'now': 'сега',
+        'seconds': 'секунди',
+        'minute': 'една минута',
+        'minutes': '{0} минути',
+        'hour': 'еден саат',
+        'hours': '{0} саати',
+        'day': 'еден ден',
+        'days': '{0} дена',
+        'month': 'еден месец',
+        'months': '{0} месеци',
+        'year': 'една година',
+        'years': '{0} години',
+    }
+
+    meridians = {
+        'am': 'дп',
+        'pm': 'пп',
+        'AM': 'претпладне',
+        'PM': 'попладне',
+    }
+
+    month_names = ['', 'Јануари', 'Февруари', 'Март', 'Април', 'Мај', 'Јуни', 'Јули', 'Август', 'Септември', 'Октомври',
+                   'Ноември', 'Декември']
+    month_abbreviations = ['', 'Јан.', ' Фев.', ' Мар.', ' Апр.', ' Мај', ' Јун.', ' Јул.', ' Авг.', ' Септ.', ' Окт.',
+                           ' Ноем.', ' Декем.']
+
+    day_names = ['', 'Понеделник', ' Вторник', ' Среда', ' Четврток', ' Петок', ' Сабота', ' Недела']
+    day_abbreviations = ['', 'Пон.', ' Вт.', ' Сре.', ' Чет.', ' Пет.', ' Саб.', ' Нед.']
+
+
+class HebrewLocale(Locale):
+
+    names = ['he', 'he_IL']
+
+    past = 'לפני {0}'
+    future = 'בעוד {0}'
+
+    timeframes = {
+        'now': 'הרגע',
+        'seconds': 'שניות',
+        'minute': 'דקה',
+        'minutes': '{0} דקות',
+        'hour': 'שעה',
+        'hours': '{0} שעות',
+        '2-hours': 'שעתיים',
+        'day': 'יום',
+        'days': '{0} ימים',
+        '2-days': 'יומיים',
+        'month': 'חודש',
+        'months': '{0} חודשים',
+        '2-months': 'חודשיים',
+        'year': 'שנה',
+        'years': '{0} שנים',
+        '2-years': 'שנתיים',
+    }
+
+    meridians = {
+        'am': 'לפנ"צ',
+        'pm': 'אחר"צ',
+        'AM': 'לפני הצהריים',
+        'PM': 'אחרי הצהריים',
+    }
+
+    month_names = ['', 'ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי',
+                   'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר']
+    month_abbreviations = ['', 'ינו׳', 'פבר׳', 'מרץ', 'אפר׳', 'מאי', 'יוני', 'יולי', 'אוג׳',
+                           'ספט׳', 'אוק׳', 'נוב׳', 'דצמ׳']
+
+    day_names = ['', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת', 'ראשון']
+    day_abbreviations = ['', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳', 'א׳']
+
+    def _format_timeframe(self, timeframe, delta):
+        '''Hebrew couple of <timeframe> aware'''
+        couple = '2-{0}'.format(timeframe)
+        if abs(delta) == 2 and couple in self.timeframes:
+            return self.timeframes[couple].format(abs(delta))
+        else:
+            return self.timeframes[timeframe].format(abs(delta))
+
+class MarathiLocale(Locale):
+
+    names = ['mr']
+
+    past = '{0} आधी'
+    future = '{0} नंतर'
+
+    timeframes = {
+        'now': 'सद्य',
+        'seconds': 'सेकंद',
+        'minute': 'एक मिनिट ',
+        'minutes': '{0} मिनिट ',
+        'hour': 'एक तास',
+        'hours': '{0} तास',
+        'day': 'एक दिवस',
+        'days': '{0} दिवस',
+        'month': 'एक महिना ',
+        'months': '{0} महिने ',
+        'year': 'एक वर्ष ',
+        'years': '{0} वर्ष ',
+    }
+
+    meridians = {
+        'am': 'सकाळ',
+        'pm': 'संध्याकाळ',
+        'AM': 'सकाळ',
+        'PM': 'संध्याकाळ',
+    }
+
+    month_names = ['', 'जानेवारी', 'फेब्रुवारी', 'मार्च', 'एप्रिल', 'मे', 'जून', 'जुलै',
+                   'अॉगस्ट', 'सप्टेंबर', 'अॉक्टोबर', 'नोव्हेंबर', 'डिसेंबर']
+    month_abbreviations = ['', 'जान', 'फेब्रु', 'मार्च', 'एप्रि', 'मे', 'जून', 'जुलै', 'अॉग',
+                           'सप्टें', 'अॉक्टो', 'नोव्हें', 'डिसें']
+
+    day_names = ['', 'सोमवार', 'मंगळवार', 'बुधवार', 'गुरुवार', 'शुक्रवार', 'शनिवार', 'रविवार']
+    day_abbreviations = ['', 'सोम', 'मंगळ', 'बुध', 'गुरु', 'शुक्र', 'शनि', 'रवि']
+    
 def _map_locales():
 
     locales = {}
@@ -1129,8 +1471,319 @@ def _map_locales():
     for cls_name, cls in inspect.getmembers(sys.modules[__name__], inspect.isclass):
         if issubclass(cls, Locale):
             for name in cls.names:
-                locales[name] = cls
+                locales[name.lower()] = cls  
 
     return locales
+
+class CatalanLocale(Locale):
+    names = ['ca', 'ca_es', 'ca_ad', 'ca_fr', 'ca_it']
+    past = 'Fa {0}'
+    future = 'En {0}'
+
+    timeframes = {
+        'now': 'Ara mateix',
+        'seconds': 'segons',
+        'minute': '1 minut',
+        'minutes': '{0} minuts',
+        'hour': 'una hora',
+        'hours': '{0} hores',
+        'day': 'un dia',
+        'days': '{0} dies',
+        'month': 'un mes',
+        'months': '{0} mesos',
+        'year': 'un any',
+        'years': '{0} anys',
+    }
+
+    month_names = ['', 'Gener', 'Febrer', 'Març', 'Abril', 'Maig', 'Juny', 'Juliol', 'Agost', 'Setembre', 'Octubre', 'Novembre', 'Desembre']
+    month_abbreviations = ['', 'Gener', 'Febrer', 'Març', 'Abril', 'Maig', 'Juny', 'Juliol', 'Agost', 'Setembre', 'Octubre', 'Novembre', 'Desembre']
+    day_names = ['', 'Dilluns', 'Dimarts', 'Dimecres', 'Dijous', 'Divendres', 'Dissabte', 'Diumenge']
+    day_abbreviations = ['', 'Dilluns', 'Dimarts', 'Dimecres', 'Dijous', 'Divendres', 'Dissabte', 'Diumenge']
+
+class BasqueLocale(Locale):
+    names = ['eu', 'eu_eu']
+    past = 'duela {0}'
+    future = '{0}' # I don't know what's the right phrase in Basque for the future.
+
+    timeframes = {
+        'now': 'Orain',
+        'seconds': 'segundu',
+        'minute': 'minutu bat',
+        'minutes': '{0} minutu',
+        'hour': 'ordu bat',
+        'hours': '{0} ordu',
+        'day': 'egun bat',
+        'days': '{0} egun',
+        'month': 'hilabete bat',
+        'months': '{0} hilabet',
+        'year': 'urte bat',
+        'years': '{0} urte',
+    }
+
+    month_names = ['', 'urtarrilak', 'otsailak', 'martxoak', 'apirilak', 'maiatzak', 'ekainak', 'uztailak', 'abuztuak', 'irailak', 'urriak', 'azaroak', 'abenduak']
+    month_abbreviations = ['', 'urt', 'ots', 'mar', 'api', 'mai', 'eka', 'uzt', 'abu', 'ira', 'urr', 'aza', 'abe']
+    day_names = ['', 'asteleehna', 'asteartea', 'asteazkena', 'osteguna', 'ostirala', 'larunbata', 'igandea']
+    day_abbreviations = ['', 'al', 'ar', 'az', 'og', 'ol', 'lr', 'ig']
+
+
+class HungarianLocale(Locale):
+
+    names = ['hu', 'hu_hu']
+
+    past = '{0} ezelőtt'
+    future = '{0} múlva'
+
+    timeframes = {
+        'now': 'éppen most',
+        'seconds': {
+            'past': 'másodpercekkel',
+            'future': 'pár másodperc'
+        },
+        'minute': {'past': 'egy perccel', 'future': 'egy perc'},
+        'minutes': {'past': '{0} perccel', 'future': '{0} perc'},
+        'hour': {'past': 'egy órával', 'future': 'egy óra'},
+        'hours': {'past': '{0} órával', 'future': '{0} óra'},
+        'day': {
+            'past': 'egy nappal',
+            'future': 'egy nap'
+        },
+        'days': {
+            'past': '{0} nappal',
+            'future': '{0} nap'
+        },
+        'month': {'past': 'egy hónappal', 'future': 'egy hónap'},
+        'months': {'past': '{0} hónappal', 'future': '{0} hónap'},
+        'year': {'past': 'egy évvel', 'future': 'egy év'},
+        'years': {'past': '{0} évvel', 'future': '{0} év'},
+    }
+
+    month_names = ['', 'január', 'február', 'március', 'április', 'május',
+                   'június', 'július', 'augusztus', 'szeptember',
+                   'október', 'november', 'december']
+    month_abbreviations = ['', 'jan', 'febr', 'márc', 'ápr', 'máj', 'jún',
+                           'júl', 'aug', 'szept', 'okt', 'nov', 'dec']
+
+    day_names = ['', 'hétfő', 'kedd', 'szerda', 'csütörtök', 'péntek',
+                 'szombat', 'vasárnap']
+    day_abbreviations = ['', 'hét', 'kedd', 'szer', 'csüt', 'pént',
+                         'szom', 'vas']
+
+    meridians = {
+        'am': 'de',
+        'pm': 'du',
+        'AM': 'DE',
+        'PM': 'DU',
+    }
+
+    def _format_timeframe(self, timeframe, delta):
+        form = self.timeframes[timeframe]
+
+        if isinstance(form, dict):
+            if delta > 0:
+                form = form['future']
+            else:
+                form = form['past']
+
+        return form.format(abs(delta))
+
+
+class EsperantoLocale(Locale):
+    names = ['eo', 'eo_xx']
+    past = 'antaŭ {0}'
+    future = 'post {0}'
+
+    timeframes = {
+        'now': 'nun',
+        'seconds': 'kelkaj sekundoj',
+        'minute': 'unu minuto',
+        'minutes': '{0} minutoj',
+        'hour': 'un horo',
+        'hours': '{0} horoj',
+        'day': 'unu tago',
+        'days': '{0} tagoj',
+        'month': 'unu monato',
+        'months': '{0} monatoj',
+        'year': 'unu jaro',
+        'years': '{0} jaroj',
+    }
+
+    month_names = ['', 'januaro', 'februaro', 'marto', 'aprilo', 'majo',
+                   'junio', 'julio', 'aŭgusto', 'septembro', 'oktobro',
+                   'novembro', 'decembro']
+    month_abbreviations = ['', 'jan', 'feb', 'mar', 'apr', 'maj', 'jun',
+                           'jul', 'aŭg', 'sep', 'okt', 'nov', 'dec']
+
+    day_names = ['', 'lundo', 'mardo', 'merkredo', 'ĵaŭdo', 'vendredo',
+                 'sabato', 'dimanĉo']
+    day_abbreviations = ['', 'lun', 'mar', 'mer', 'ĵaŭ', 'ven',
+                         'sab', 'dim']
+
+    meridians = {
+        'am': 'atm',
+        'pm': 'ptm',
+        'AM': 'ATM',
+        'PM': 'PTM',
+    }
+
+    ordinal_day_re = r'((?P<value>[1-3]?[0-9](?=a))a)'
+
+    def _ordinal_number(self, n):
+        return '{0}a'.format(n)
+
+
+class ThaiLocale(Locale):
+
+    names = ['th', 'th_th']
+
+    past = '{0}{1}ที่ผ่านมา'
+    future = 'ในอีก{1}{0}'
+
+    timeframes = {
+        'now': 'ขณะนี้',
+        'seconds': 'ไม่กี่วินาที',
+        'minute': '1 นาที',
+        'minutes': '{0} นาที',
+        'hour': '1 ชั่วโมง',
+        'hours': '{0} ชั่วโมง',
+        'day': '1 วัน',
+        'days': '{0} วัน',
+        'month': '1 เดือน',
+        'months': '{0} เดือน',
+        'year': '1 ปี',
+        'years': '{0} ปี',
+    }
+
+    month_names = ['', 'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน',
+                   'พฤษภาคม', 'มิถุนายน', 'กรกฏาคม', 'สิงหาคม',
+                   'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม']
+    month_abbreviations = ['', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.',
+                           'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.',
+                           'พ.ย.', 'ธ.ค.']
+
+    day_names = ['', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์',
+                 'เสาร์', 'อาทิตย์']
+    day_abbreviations = ['', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส', 'อา']
+
+    meridians = {
+        'am': 'am',
+        'pm': 'pm',
+        'AM': 'AM',
+        'PM': 'PM',
+    }
+
+    BE_OFFSET = 543
+
+    def year_full(self, year):
+        '''Thai always use Buddhist Era (BE) which is CE + 543'''
+        year += self.BE_OFFSET
+        return '{0:04d}'.format(year)
+
+    def year_abbreviation(self, year):
+        '''Thai always use Buddhist Era (BE) which is CE + 543'''
+        year += self.BE_OFFSET
+        return '{0:04d}'.format(year)[2:]
+
+    def _format_relative(self, humanized, timeframe, delta):
+        '''Thai normally doesn't have any space between words'''
+        if timeframe == 'now':
+            return humanized
+        space = '' if timeframe == 'seconds' else ' '
+        direction = self.past if delta < 0 else self.future
+
+        return direction.format(humanized, space)
+
+
+
+class BengaliLocale(Locale):
+
+    names = ['bn', 'bn_bd', 'bn_in']
+
+    past = '{0} আগে'
+    future = '{0} পরে'
+
+    timeframes = {
+        'now': 'এখন',
+        'seconds': 'সেকেন্ড',
+        'minute': 'এক মিনিট',
+        'minutes': '{0} মিনিট',
+        'hour': 'এক ঘণ্টা',
+        'hours': '{0} ঘণ্টা',
+        'day': 'এক দিন',
+        'days': '{0} দিন',
+        'month': 'এক মাস',
+        'months': '{0} মাস ',
+        'year': 'এক বছর',
+        'years': '{0} বছর',
+    }
+
+    meridians = {
+        'am': 'সকাল',
+        'pm': 'বিকাল',
+        'AM': 'সকাল',
+        'PM': 'বিকাল',
+    }
+
+    month_names = ['', 'জানুয়ারি', 'ফেব্রুয়ারি', 'মার্চ', 'এপ্রিল', 'মে', 'জুন', 'জুলাই',
+                   'আগস্ট', 'সেপ্টেম্বর', 'অক্টোবর', 'নভেম্বর', 'ডিসেম্বর']
+    month_abbreviations = ['', 'জানু', 'ফেব', 'মার্চ', 'এপ্রি', 'মে', 'জুন', 'জুল',
+                           'অগা','সেপ্ট', 'অক্টো', 'নভে', 'ডিসে']
+
+    day_names = ['', 'সোমবার', 'মঙ্গলবার', 'বুধবার', 'বৃহস্পতিবার', 'শুক্রবার', 'শনিবার', 'রবিবার']
+    day_abbreviations = ['', 'সোম', 'মঙ্গল', 'বুধ', 'বৃহঃ', 'শুক্র', 'শনি', 'রবি']
+
+    def _ordinal_number(self, n):
+        if n > 10 or n == 0:
+            return '{0}তম'.format(n)
+        if n in [1, 5, 7, 8, 9, 10]:
+            return '{0}ম'.format(n)
+        if n in [2, 3]:
+            return '{0}য়'.format(n)
+        if n == 4:
+            return '{0}র্থ'.format(n)
+        if n == 6:
+            return '{0}ষ্ঠ'.format(n)
+
+
+class RomanshLocale(Locale):
+
+    names = ['rm', 'rm_ch']
+
+    past = 'avant {0}'
+    future = 'en {0}'
+
+    timeframes = {
+        'now': 'en quest mument',
+        'seconds': 'secundas',
+        'minute': 'ina minuta',
+        'minutes': '{0} minutas',
+        'hour': 'in\'ura',
+        'hours': '{0} ura',
+        'day': 'in di',
+        'days': '{0} dis',
+        'month': 'in mais',
+        'months': '{0} mais',
+        'year': 'in onn',
+        'years': '{0} onns',
+    }
+
+    month_names = [
+        '', 'schaner', 'favrer', 'mars', 'avrigl', 'matg', 'zercladur',
+        'fanadur', 'avust', 'settember', 'october', 'november', 'december'
+    ]
+
+    month_abbreviations = [
+        '', 'schan', 'fav', 'mars', 'avr', 'matg', 'zer', 'fan', 'avu',
+        'set', 'oct', 'nov', 'dec'
+    ]
+
+    day_names = [
+        '', 'glindesdi', 'mardi', 'mesemna', 'gievgia', 'venderdi',
+        'sonda', 'dumengia'
+    ]
+
+    day_abbreviations = [
+        '', 'gli', 'ma', 'me', 'gie', 've', 'so', 'du'
+    ]
+
 
 _locales = _map_locales()

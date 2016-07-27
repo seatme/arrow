@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+from datetime import datetime
+
 from chai import Chai
 
 from arrow import locales
-
+from arrow.api import now
+from arrow import arrow
 
 class ModuleTests(Chai):
 
@@ -55,6 +58,67 @@ class LocaleTests(Chai):
         result = self.locale._format_relative('an hour', 'hour', -1)
 
         assertEqual(result, 'an hour ago')
+
+    def test_ordinal_number(self):
+        assertEqual(self.locale.ordinal_number(0), '0th')
+        assertEqual(self.locale.ordinal_number(1), '1st')
+        assertEqual(self.locale.ordinal_number(2), '2nd')
+        assertEqual(self.locale.ordinal_number(3), '3rd')
+        assertEqual(self.locale.ordinal_number(4), '4th')
+        assertEqual(self.locale.ordinal_number(10), '10th')
+        assertEqual(self.locale.ordinal_number(11), '11th')
+        assertEqual(self.locale.ordinal_number(12), '12th')
+        assertEqual(self.locale.ordinal_number(13), '13th')
+        assertEqual(self.locale.ordinal_number(14), '14th')
+        assertEqual(self.locale.ordinal_number(21), '21st')
+        assertEqual(self.locale.ordinal_number(22), '22nd')
+        assertEqual(self.locale.ordinal_number(23), '23rd')
+        assertEqual(self.locale.ordinal_number(24), '24th')
+
+        assertEqual(self.locale.ordinal_number(100), '100th')
+        assertEqual(self.locale.ordinal_number(101), '101st')
+        assertEqual(self.locale.ordinal_number(102), '102nd')
+        assertEqual(self.locale.ordinal_number(103), '103rd')
+        assertEqual(self.locale.ordinal_number(104), '104th')
+        assertEqual(self.locale.ordinal_number(110), '110th')
+        assertEqual(self.locale.ordinal_number(111), '111th')
+        assertEqual(self.locale.ordinal_number(112), '112th')
+        assertEqual(self.locale.ordinal_number(113), '113th')
+        assertEqual(self.locale.ordinal_number(114), '114th')
+        assertEqual(self.locale.ordinal_number(121), '121st')
+        assertEqual(self.locale.ordinal_number(122), '122nd')
+        assertEqual(self.locale.ordinal_number(123), '123rd')
+        assertEqual(self.locale.ordinal_number(124), '124th')
+
+    def test_meridian_invalid_token(self):
+        assertEqual(self.locale.meridian(7, None), None)
+        assertEqual(self.locale.meridian(7, 'B'), None)
+        assertEqual(self.locale.meridian(7, 'NONSENSE'), None)
+
+
+class ItalianLocalesTests(Chai):
+
+    def test_ordinal_number(self):
+        locale = locales.ItalianLocale()
+
+        assertEqual(locale.ordinal_number(1), '1°')
+
+
+class SpanishLocalesTests(Chai):
+
+    def test_ordinal_number(self):
+        locale = locales.SpanishLocale()
+
+        assertEqual(locale.ordinal_number(1), '1°')
+
+
+class FrenchLocalesTests(Chai):
+
+    def test_ordinal_number(self):
+        locale = locales.FrenchLocale()
+
+        assertEqual(locale.ordinal_number(1), '1er')
+        assertEqual(locale.ordinal_number(2), '2e')
 
 
 class RussianLocalesTests(Chai):
@@ -113,6 +177,7 @@ class IcelandicLocalesTests(Chai):
 
         assertEqual(self.locale._format_timeframe('hours', -2), '2 tímum')
         assertEqual(self.locale._format_timeframe('hours', 2), '2 tíma')
+        assertEqual(self.locale._format_timeframe('now', 0), 'rétt í þessu')
 
 
 class MalayalamLocaleTests(Chai):
@@ -171,3 +236,241 @@ class HindiLocaleTests(Chai):
 
         result = self.locale._format_relative('एक घंट', 'hour', -1)
         assertEqual(result, 'एक घंट पहले')
+
+
+class CzechLocaleTests(Chai):
+
+    def setUp(self):
+        super(CzechLocaleTests, self).setUp()
+
+        self.locale = locales.CzechLocale()
+
+    def test_format_timeframe(self):
+
+        assertEqual(self.locale._format_timeframe('hours', 2), '2 hodiny')
+        assertEqual(self.locale._format_timeframe('hours', 5), '5 hodin')
+        assertEqual(self.locale._format_timeframe('hour', 0), '0 hodin')
+        assertEqual(self.locale._format_timeframe('hours', -2), '2 hodinami')
+        assertEqual(self.locale._format_timeframe('hours', -5), '5 hodinami')
+        assertEqual(self.locale._format_timeframe('now', 0), 'Teď')
+
+    def test_format_relative_now(self):
+
+        result = self.locale._format_relative('Teď', 'now', 0)
+        assertEqual(result, 'Teď')
+
+    def test_format_relative_future(self):
+
+        result = self.locale._format_relative('hodinu', 'hour', 1)
+        assertEqual(result, 'Za hodinu')
+
+    def test_format_relative_past(self):
+
+        result = self.locale._format_relative('hodinou', 'hour', -1)
+        assertEqual(result, 'Před hodinou')
+
+
+class BulgarianLocaleTests(Chai):
+
+    def test_plurals2(self):
+
+        locale = locales.BulgarianLocale()
+
+        assertEqual(locale._format_timeframe('hours', 0), '0 часа')
+        assertEqual(locale._format_timeframe('hours', 1), '1 час')
+        assertEqual(locale._format_timeframe('hours', 2), '2 часа')
+        assertEqual(locale._format_timeframe('hours', 4), '4 часа')
+        assertEqual(locale._format_timeframe('hours', 5), '5 часа')
+        assertEqual(locale._format_timeframe('hours', 21), '21 час')
+        assertEqual(locale._format_timeframe('hours', 22), '22 часа')
+        assertEqual(locale._format_timeframe('hours', 25), '25 часа')
+
+        # feminine grammatical gender should be tested separately
+        assertEqual(locale._format_timeframe('minutes', 0), '0 минути')
+        assertEqual(locale._format_timeframe('minutes', 1), '1 минута')
+        assertEqual(locale._format_timeframe('minutes', 2), '2 минути')
+        assertEqual(locale._format_timeframe('minutes', 4), '4 минути')
+        assertEqual(locale._format_timeframe('minutes', 5), '5 минути')
+        assertEqual(locale._format_timeframe('minutes', 21), '21 минута')
+        assertEqual(locale._format_timeframe('minutes', 22), '22 минути')
+        assertEqual(locale._format_timeframe('minutes', 25), '25 минути')
+
+
+class HebrewLocaleTests(Chai):
+
+    def test_couple_of_timeframe(self):
+        locale = locales.HebrewLocale()
+
+        assertEqual(locale._format_timeframe('hours', 2), 'שעתיים')
+        assertEqual(locale._format_timeframe('months', 2), 'חודשיים')
+        assertEqual(locale._format_timeframe('days', 2), 'יומיים')
+        assertEqual(locale._format_timeframe('years', 2), 'שנתיים')
+
+        assertEqual(locale._format_timeframe('hours', 3), '3 שעות')
+        assertEqual(locale._format_timeframe('months', 4), '4 חודשים')
+        assertEqual(locale._format_timeframe('days', 3), '3 ימים')
+        assertEqual(locale._format_timeframe('years', 5), '5 שנים')
+
+
+class MarathiLocaleTests(Chai):
+
+    def setUp(self):
+        super(MarathiLocaleTests, self).setUp()
+
+        self.locale = locales.MarathiLocale()
+        
+    def test_dateCoreFunctionality(self):
+        dt = arrow.Arrow(2015, 4, 11, 17, 30, 00)
+        assertEqual (self.locale.month_name(dt.month),'एप्रिल')
+        assertEqual (self.locale.month_abbreviation(dt.month),'एप्रि')
+        assertEqual (self.locale.day_name(dt.isoweekday()),'शनिवार')
+        assertEqual (self.locale.day_abbreviation(dt.isoweekday()), 'शनि')
+        
+    def test_format_timeframe(self):
+        assertEqual(self.locale._format_timeframe('hours', 2), '2 तास')
+        assertEqual(self.locale._format_timeframe('hour', 0), 'एक तास')
+
+    def test_format_relative_now(self):
+        result = self.locale._format_relative('सद्य', 'now', 0)
+        assertEqual(result, 'सद्य')
+
+    def test_format_relative_past(self):
+        result = self.locale._format_relative('एक तास', 'hour', 1)
+        assertEqual(result, 'एक तास नंतर')
+
+    def test_format_relative_future(self):
+        result = self.locale._format_relative('एक तास', 'hour', -1)
+        assertEqual(result, 'एक तास आधी')
+
+    # Not currently implemented
+    def test_ordinal_number(self):
+        assertEqual(self.locale.ordinal_number(1), '1')
+
+
+class FinnishLocaleTests(Chai):
+
+    def setUp(self):
+        super(FinnishLocaleTests, self).setUp()
+
+        self.locale = locales.FinnishLocale()
+
+    def test_format_timeframe(self):
+        assertEqual(self.locale._format_timeframe('hours', 2),
+                    ('2 tuntia', '2 tunnin'))
+        assertEqual(self.locale._format_timeframe('hour', 0),
+                    ('tunti', 'tunnin'))
+
+    def test_format_relative_now(self):
+        result = self.locale._format_relative(['juuri nyt', 'juuri nyt'], 'now', 0)
+        assertEqual(result, 'juuri nyt')
+
+    def test_format_relative_past(self):
+        result = self.locale._format_relative(['tunti', 'tunnin'], 'hour', 1)
+        assertEqual(result, 'tunnin kuluttua')
+
+    def test_format_relative_future(self):
+        result = self.locale._format_relative(['tunti', 'tunnin'], 'hour', -1)
+        assertEqual(result, 'tunti sitten')
+
+    def test_ordinal_number(self):
+        assertEqual(self.locale.ordinal_number(1), '1.')
+
+
+class GermanLocaleTests(Chai):
+
+    def setUp(self):
+        super(GermanLocaleTests, self).setUp()
+
+        self.locale = locales.GermanLocale()
+
+    def test_ordinal_number(self):
+        assertEqual(self.locale.ordinal_number(1), '1.')
+
+
+class HungarianLocaleTests(Chai):
+
+    def setUp(self):
+        super(HungarianLocaleTests, self).setUp()
+
+        self.locale = locales.HungarianLocale()
+
+    def test_format_timeframe(self):
+        assertEqual(self.locale._format_timeframe('hours', 2), '2 óra')
+        assertEqual(self.locale._format_timeframe('hour', 0), 'egy órával')
+        assertEqual(self.locale._format_timeframe('hours', -2), '2 órával')
+        assertEqual(self.locale._format_timeframe('now', 0), 'éppen most')
+
+
+class EsperantoLocaleTests(Chai):
+
+    def setUp(self):
+        super(EsperantoLocaleTests, self).setUp()
+
+        self.locale = locales.EsperantoLocale()
+
+    def test_format_timeframe(self):
+        assertEqual(self.locale._format_timeframe('hours', 2), '2 horoj')
+        assertEqual(self.locale._format_timeframe('hour', 0), 'un horo')
+        assertEqual(self.locale._format_timeframe('hours', -2), '2 horoj')
+        assertEqual(self.locale._format_timeframe('now', 0), 'nun')
+
+    def test_ordinal_number(self):
+        assertEqual(self.locale.ordinal_number(1), '1a')
+
+class ThaiLocaleTests(Chai):
+
+    def setUp(self):
+        super(ThaiLocaleTests, self).setUp()
+
+        self.locale = locales.ThaiLocale()
+
+    def test_year_full(self):
+        assertEqual(self.locale.year_full(2015), '2558')
+
+    def test_year_abbreviation(self):
+        assertEqual(self.locale.year_abbreviation(2015), '58')
+
+    def test_format_relative_now(self):
+        result = self.locale._format_relative('ขณะนี้', 'now', 0)
+        assertEqual(result, 'ขณะนี้')
+
+    def test_format_relative_past(self):
+        result = self.locale._format_relative('1 ชั่วโมง', 'hour', 1)
+        assertEqual(result, 'ในอีก 1 ชั่วโมง')
+        result = self.locale._format_relative('{0} ชั่วโมง', 'hours', 2)
+        assertEqual(result, 'ในอีก {0} ชั่วโมง')
+        result = self.locale._format_relative('ไม่กี่วินาที', 'seconds', 42)
+        assertEqual(result, 'ในอีกไม่กี่วินาที')
+
+    def test_format_relative_future(self):
+        result = self.locale._format_relative('1 ชั่วโมง', 'hour', -1)
+        assertEqual(result, '1 ชั่วโมง ที่ผ่านมา')
+
+
+class BengaliLocaleTests(Chai):
+
+    def setUp(self):
+        super(BengaliLocaleTests, self).setUp()
+
+        self.locale = locales.BengaliLocale()
+
+    def test_ordinal_number(self):
+        result0 = self.locale._ordinal_number(0)
+        result1 = self.locale._ordinal_number(1)
+        result3 = self.locale._ordinal_number(3)
+        result4 = self.locale._ordinal_number(4)
+        result5 = self.locale._ordinal_number(5)
+        result6 = self.locale._ordinal_number(6)
+        result10 = self.locale._ordinal_number(10)
+        result11 = self.locale._ordinal_number(11)
+        result42 = self.locale._ordinal_number(42)
+        assertEqual(result0, '0তম')
+        assertEqual(result1, '1ম')
+        assertEqual(result3, '3য়')
+        assertEqual(result4, '4র্থ')
+        assertEqual(result5, '5ম')
+        assertEqual(result6, '6ষ্ঠ')
+        assertEqual(result10, '10ম')
+        assertEqual(result11, '11তম')
+        assertEqual(result42, '42তম')
+        assertEqual(self.locale._ordinal_number(-1), None)

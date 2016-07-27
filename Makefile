@@ -15,9 +15,18 @@ build33:
 	virtualenv local --python=python3.3
 	local/bin/pip install --use-mirrors -r requirements.txt
 
+build34:
+	virtualenv local --python=python3.4
+	local/bin/pip install --use-mirrors -r requirements.txt
+
+
+build35:
+	virtualenv local --python=python3.5
+	local/bin/pip install --use-mirrors -r requirements.txt
+
 test:
 	rm -f .coverage
-	. local/bin/activate && nosetests --all-modules --with-coverage arrow tests
+	. local/bin/activate && nosetests
 
 docs:
 	touch docs/index.rst
